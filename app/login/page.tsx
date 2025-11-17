@@ -1,4 +1,4 @@
-// app/login/page.tsx
+
 // UserName: test@example.com
 // Password: password@123
 
@@ -126,7 +126,7 @@ function LoginForm() {
             </div>
           )}
 
-          {/* Form */}
+
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* Email Field */}
             <div className="relative">

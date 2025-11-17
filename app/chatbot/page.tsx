@@ -1,4 +1,4 @@
-// app/chatbot/page.tsx
+
 "use client";
 
 import AIChat from "@/components/ai-chat";

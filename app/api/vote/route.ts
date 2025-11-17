@@ -1,4 +1,4 @@
-// app/api/vote/route.ts
+
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 
@@ -22,7 +22,7 @@ interface SessionUser {
 // In-memory vote storage (replace with database in production)
 const votesStore = new Map<string, Vote>();
 
-// Helper function to get user ID
+// to get user ID
 function getUserId(user: SessionUser): string {
   return user.id || user.email || 'default-user';
 }
@@ -61,8 +61,8 @@ export async function POST(request: NextRequest) {
     const existingVote = votesStore.get(voteKey);
 
     if (existingVote && existingVote.vote === vote) {
-      // User clicked the same vote again - remove vote (toggle off)
-      votesStore.delete(voteKey);
+      
+      votesStore.delete(voteKey);                                          // User clicked the same vote again - remove vote (toggle off)
       console.log(`Vote removed for message ${messageId}`);
       
       return NextResponse.json({
