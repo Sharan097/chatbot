@@ -236,6 +236,11 @@ export default function Home() {
               </div>
 
               {/* Cards Grid */}
+              {/* Search Bar - AT THE TOP */}
+              <div className="mt-2 mb-6 pt-6 pb-4">                           {/* keep mt-auto, used when more cards will be Added */}
+                <SearchBar onSearch={handleSearch} />
+              </div>
+
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6 mb-6">
                 {filteredCards.length > 0 ? (
                   filteredCards.map((card) => (
@@ -259,10 +264,6 @@ export default function Home() {
                 )}
               </div>
 
-              {/* Search Bar - AT THE BOTTOM */}
-              <div className="mt-4 pt-6 pb-4">                           {/* keep mt-auto, used when more cards will be Added */}
-                <SearchBar onSearch={handleSearch} />
-              </div>
             </div>
           </div>
         </div>
