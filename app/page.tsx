@@ -102,7 +102,7 @@ export default function Home() {
   ]);
 
 
-  // ✅ LOGOUT FUNCTION ADDED HERE
+  // LOGOUT FUNCTION ADDED HERE
   const handleLogout = async () => {
     localStorage.clear();
     sessionStorage.clear();
@@ -212,7 +212,7 @@ export default function Home() {
   return (
     <div className="w-full min-h-screen bg-white dark:bg-gray-900">
 
-    {/* ✅ LOGOUT BUTTON */}
+    {/* LOGOUT BUTTON */}
         <div className="absolute top-4 right-4 z-50">
           <Button
               variant="ghost"
