@@ -1,6 +1,6 @@
 
 // UserName: test@example.com
-// Password: password@123
+// Password: password123
 
 "use client";
 

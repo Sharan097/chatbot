@@ -1,11 +1,13 @@
 // app/page.tsx
 "use client";
 
-import { useState } from "react";
-import { useSession } from "next-auth/react";
+import { useState, KeyboardEvent } from "react";
+// import { useSession } from "next-auth/react";
+import { useSession, signOut } from "next-auth/react"; 
 import { useRouter } from "next/navigation";
 import { Card } from "@/components/card";
-import { SearchBar } from "@/components/search";
+import { Search, LogOut } from "lucide-react";
+import { Button } from '@/components/ui/button';
 import {
   SettingsIcon,
   ChatIcon,
@@ -73,12 +75,43 @@ const cardData = [
   },
 ];
 
+// Chat message type
+type ChatMessage = {
+  id: number;
+  type: 'user' | 'ai';
+  text: string;
+  timestamp: Date;
+};
+
 export default function Home() {
   const { status } = useSession();
   const router = useRouter();
   const [showChatPrompt, setShowChatPrompt] = useState(false);
   const [filteredCards, setFilteredCards] = useState(cardData);
   const [searchQuery, setSearchQuery] = useState("");
+  
+  // Chatbot states
+  const [chatInput, setChatInput] = useState("");
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
+    {
+      id: 1,
+      type: 'ai',
+      text: 'Hello! How can I assist you today?',
+      timestamp: new Date()
+    }
+  ]);
+
+
+  // ✅ LOGOUT FUNCTION ADDED HERE
+  const handleLogout = async () => {
+    localStorage.clear();
+    sessionStorage.clear();
+    await signOut({
+      callbackUrl: "/login",
+      redirect: true,
+    });
+  };
+
 
   const handleChatClick = () => {
     setShowChatPrompt(!showChatPrompt);
@@ -91,7 +124,6 @@ export default function Home() {
   const handleSearch = (query: string) => {
     setSearchQuery(query);
     
-    // AUTO-RESET: If query is empty, show all cards
     if (!query.trim()) {
       setFilteredCards(cardData);
       return;
@@ -107,26 +139,102 @@ export default function Home() {
     setFilteredCards(filtered);
   };
 
-  if (status === "loading") {
+  // Handle chatbot message send
+  const handleChatSend = () => {
+    if (!chatInput.trim()) return;
+
+    const userMessage: ChatMessage = {
+      id: chatMessages.length + 1,
+      type: 'user',
+      text: chatInput,
+      timestamp: new Date()
+    };
+
+    setChatMessages(prev => [...prev, userMessage]);
+
+    setTimeout(() => {
+      const lowerQuery = chatInput.toLowerCase();
+      const matchedCards = cardData.filter(card => 
+        card.title.toLowerCase().includes(lowerQuery) ||
+        card.description.toLowerCase().includes(lowerQuery) ||
+        card.keywords.some(keyword => keyword.includes(lowerQuery))
+      );
+
+      let aiResponse = '';
+      if (matchedCards.length > 0) {
+        const cardTitles = matchedCards.map(c => c.title).join(', ');
+        aiResponse = `I found ${matchedCards.length} card(s) related to your query: ${cardTitles}. Check the right side to see them!`;
+        setFilteredCards(matchedCards);
+      } else {
+        aiResponse = `I couldn't find any cards matching "${chatInput}". Try searching for: AI Engine, Create Cards, View Cards, Templates, or Export.`;
+        setFilteredCards(cardData);
+      }
+
+      const aiMessage: ChatMessage = {
+        id: chatMessages.length + 2,
+        type: 'ai',
+        text: aiResponse,
+        timestamp: new Date()
+      };
+
+      setChatMessages(prev => [...prev, aiMessage]);
+    }, 500);
+
+    setChatInput("");
+  };
+
+  // Handle Enter key press
+  const handleChatKeyPress = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      handleChatSend();
+    }
+  };
+
+    if (status === "loading") {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-white dark:bg-gray-900">
-        <div className="w-8 h-8 border-4 border-purple-600 border-t-transparent rounded-full animate-spin"></div>
+      <div className="fixed inset-0 w-full h-full flex items-center justify-center bg-white dark:bg-gray-900">
+        <div className="flex flex-col items-center justify-center gap-4">
+          {/* Modern Minimalist Spinner */}
+          <div className="relative w-16 h-16">
+            <div className="absolute inset-0 border-4 border-gray-200 dark:border-gray-700 rounded-full"></div>
+            <div className="absolute inset-0 border-4 border-purple-600 dark:border-purple-500 rounded-full border-t-transparent animate-spin"></div>
+          </div>
+          <div className="text-center">
+            <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Loading AI Card Generator</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Preparing your experience...</p>
+          </div>
+        </div>
       </div>
-    );
-  }
+      );
+    }
+
 
   return (
     <div className="w-full min-h-screen bg-white dark:bg-gray-900">
-      {/* Main Container with Grid Layout for Perfect Alignment */}
+
+    {/* ✅ LOGOUT BUTTON */}
+        <div className="absolute top-4 right-4 z-50">
+          <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleLogout}
+              className="text-black hover:bg-gray-100 flex items-center gap-1 sm:gap-2 px-2 sm:px-3"
+            >
+              <LogOut className="w-4 h-4" />
+              <span className="hidden sm:inline text-sm">Logout</span>
+            </Button>
+        </div>
+
+
       <div className="w-full h-screen grid grid-cols-1 lg:grid-cols-[30%_70%]">
         
-        {/* Left Section - Chat Prompt (30%) */}
-        <div className="w-full h-full bg-gradient-to-br from-purple-100 via-pink-100 to-blue-100 dark:from-purple-900/40 dark:via-pink-900/40 dark:to-blue-900/40 border-b lg:border-b-0 lg:border-r border-gray-200 dark:border-gray-700 flex flex-col items-center justify-center p-4 sm:p-6 md:p-8 lg:p-12 relative overflow-y-auto">
+        {/* Left Section - Interactive Chatbot (30%) */}
+        <div className="w-full h-full bg-gradient-to-br from-purple-100 via-pink-100 to-blue-100 dark:from-purple-900/40 dark:via-pink-900/40 dark:to-blue-900/40 border-b lg:border-b-0 lg:border-r border-gray-200 dark:border-gray-700 flex flex-col items-center justify-center p-4 sm:p-6 md:p-8 lg:p-12 relative overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-br from-purple-200/50 via-pink-200/50 to-orange-200/50 dark:from-purple-800/30 dark:via-pink-800/30 dark:to-orange-800/30 blur-3xl opacity-60"></div>
 
-          <div className="max-w-md w-full flex flex-col items-center justify-center relative z-10" style={{ minHeight: '280px' }}>
+          <div className="max-w-md w-full h-full flex flex-col justify-between relative z-10">
             {showChatPrompt ? (
-              <div className="text-center space-y-4 sm:space-y-6 w-full">
+              <div className="text-center space-y-4 sm:space-y-6 w-full my-auto">
                 <div className="inline-block p-3 sm:p-4 bg-white/90 dark:bg-gray-900/90 rounded-2xl shadow-lg backdrop-blur-sm transform transition-transform duration-300 hover:scale-110">
                   <svg
                     className="w-12 h-12 sm:w-16 sm:h-16 text-purple-600 dark:text-purple-400"
@@ -153,67 +261,75 @@ export default function Home() {
                 </button>
               </div>
             ) : (
-              <div className="w-full space-y-4 sm:space-y-6">
-                <div className="bg-gray-100/90 dark:bg-gray-800/90 rounded-2xl p-4 sm:p-6 shadow-md backdrop-blur-sm transition-all duration-300 hover:shadow-xl transform hover:translate-y-[-2px]">
-                  <div className="flex items-start gap-3 sm:gap-4">
-                    <svg
-                      className="w-6 h-6 sm:w-8 sm:h-8 text-gray-600 dark:text-gray-400 flex-shrink-0 mt-1"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
-                      />
-                    </svg>
-                    <p className="text-base sm:text-lg text-gray-900 dark:text-white font-medium">
-                      Chatbot will assist you soon
-                    </p>
-                  </div>
+              <div className="w-full h-full flex flex-col">
+                {/* Header */}
+                <div className="mb-4">
+                  <h3 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white">
+                    AI Assistant
+                  </h3>
+                  <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
+                    Ask me to find cards for you
+                  </p>
                 </div>
 
-                <div className="bg-gradient-to-br from-purple-500/90 via-pink-500/90 to-orange-400/90 dark:from-purple-600/90 dark:via-pink-600/90 dark:to-orange-500/90 rounded-3xl p-6 sm:p-8 shadow-2xl backdrop-blur-sm transition-all duration-300 hover:shadow-3xl transform hover:translate-y-[-2px]">
-                  <div className="mb-4 sm:mb-6 flex justify-start">
-                    <div className="bg-blue-500 text-white rounded-3xl rounded-tl-lg px-4 sm:px-6 py-3 sm:py-4 max-w-[80%] shadow-lg transition-transform duration-300 hover:scale-105">
-                      <p className="font-medium mb-1 text-xs sm:text-sm opacity-90">
-                        AI: Hello! How can
-                      </p>
-                      <p className="font-medium text-xs sm:text-sm opacity-90">
-                        I assist you today?
-                      </p>
+                {/* Chat Messages Container */}
+                <div className="flex-1 overflow-y-auto mb-4 space-y-3 scrollbar-thin scrollbar-thumb-purple-400 scrollbar-track-transparent">
+                  {chatMessages.map((message) => (
+                    <div
+                      key={message.id}
+                      className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
+                    >
+                      <div
+                        className={`
+                          max-w-[85%] px-4 py-3 rounded-2xl shadow-md transition-all duration-300 hover:scale-[1.02]
+                          ${message.type === 'user'
+                            ? 'bg-white/95 text-gray-900 rounded-tr-lg'
+                            : 'bg-blue-500 text-white rounded-tl-lg'
+                          }
+                        `}
+                      >
+                        <p className="text-xs sm:text-sm font-medium break-words">
+                          {message.text}
+                        </p>
+                      </div>
                     </div>
-                  </div>
+                  ))}
+                </div>
 
-                  <div className="mb-4 sm:mb-6 flex justify-end">
-                    <div className="bg-white/95 text-gray-900 rounded-3xl rounded-tr-lg px-4 sm:px-6 py-3 sm:py-4 max-w-[80%] shadow-lg transition-transform duration-300 hover:scale-105">
-                      <p className="font-medium text-xs sm:text-sm">Generate a happy</p>
-                      <p className="font-medium text-xs sm:text-sm">birthday card</p>
+                {/* Chat Input - Polished Search Bar */}
+                <div className="relative">
+                  <div className="flex items-center gap-2 bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 rounded-xl shadow-lg hover:shadow-xl hover:border-purple-400 dark:hover:border-purple-600 transition-all duration-300 focus-within:border-purple-500 focus-within:ring-2 focus-within:ring-purple-200 dark:focus-within:ring-purple-900/50">
+                    <div className="pl-4 text-gray-400 dark:text-gray-500">
+                      <Search className="w-5 h-5" />
                     </div>
-                  </div>
-
-                  <div className="bg-white/95 dark:bg-gray-100 rounded-full px-4 sm:px-6 py-2 sm:py-3 flex items-center gap-2 sm:gap-3 shadow-lg transition-all duration-300 hover:shadow-2xl">
                     <input
                       type="text"
-                      placeholder="Send a message..."
-                      className="flex-grow bg-transparent text-gray-700 placeholder-gray-400 outline-none text-xs sm:text-sm"
-                      readOnly
+                      value={chatInput}
+                      onChange={(e) => setChatInput(e.target.value)}
+                      onKeyPress={handleChatKeyPress}
+                      placeholder="Type here for cards..."
+                      className="flex-grow py-3 px-2 bg-transparent text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500 outline-none text-sm sm:text-base focus:outline-none focus:ring-0 border-0"
                     />
-                    <svg
-                      className="w-5 h-5 sm:w-6 sm:h-6 text-purple-500 transition-transform duration-300 hover:scale-125"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
+                    <button
+                      onClick={handleChatSend}
+                      disabled={!chatInput.trim()}
+                      className="mr-2 p-2 rounded-lg bg-purple-600 text-white hover:bg-purple-700 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 shadow-md hover:shadow-lg"
+                      title="Search"
                     >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"
-                      />
-                    </svg>
+                      <svg
+                        className="w-5 h-5"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"
+                        />
+                      </svg>
+                    </button>
                   </div>
                 </div>
               </div>
@@ -221,7 +337,7 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Right Section - Cards + Search Bar (70%) */}
+        {/* Right Section - Cards (70%) */}
         <div className="w-full h-full bg-white dark:bg-gray-900 overflow-y-auto">
           <div className="min-h-full flex flex-col p-4 sm:p-6 lg:p-10">
             <div className="w-full max-w-5xl mx-auto flex-1 flex flex-col">
@@ -236,11 +352,6 @@ export default function Home() {
               </div>
 
               {/* Cards Grid */}
-              {/* Search Bar - AT THE TOP */}
-              <div className="mt-2 mb-6 pt-6 pb-4">                           {/* keep mt-auto, used when more cards will be Added */}
-                <SearchBar onSearch={handleSearch} />
-              </div>
-
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6 mb-6">
                 {filteredCards.length > 0 ? (
                   filteredCards.map((card) => (
@@ -260,10 +371,24 @@ export default function Home() {
                     <p className="text-gray-500 dark:text-gray-400 text-lg">
                       {`No cards found matching "${searchQuery}"`}
                     </p>
+                    <button
+                      onClick={() => {
+                        setSearchQuery("");
+                        setFilteredCards(cardData);
+                        setChatMessages(prev => [...prev, {
+                          id: prev.length + 1,
+                          type: 'ai',
+                          text: 'Showing all cards again!',
+                          timestamp: new Date()
+                        }]);
+                      }}
+                      className="mt-4 px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+                    >
+                      Show All Cards
+                    </button>
                   </div>
                 )}
               </div>
-
             </div>
           </div>
         </div>

@@ -2,6 +2,7 @@
 import NextAuth, { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
+import FacebookProvider from "next-auth/providers/facebook";
 import { userStore } from "@/lib/userStore";
 
 if (!process.env.NEXTAUTH_SECRET) {
@@ -13,6 +14,11 @@ export const authOptions: NextAuthOptions = {
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID || "",
       clientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
+    }),
+
+    FacebookProvider({
+      clientId: process.env.META_CLIENT_ID!,
+      clientSecret: process.env.META_CLIENT_SECRET!,
     }),
 
     CredentialsProvider({
