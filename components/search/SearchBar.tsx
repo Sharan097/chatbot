@@ -18,7 +18,7 @@ export function SearchBar({ onSearch, placeholder = "Search your smart cards" }:
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      // ✅ FIX: Type assertion instead of 'any'
+      // FIX: Type assertion instead of 'any'
       const SpeechRecognitionAPI = 
         window.SpeechRecognition || 
         window.webkitSpeechRecognition;

@@ -1,59 +1,128 @@
-// app/api/auth/signup/route.ts
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from "next/server";
+import { userStore } from "@/lib/userStore";
+import { generateVerificationToken, sendVerificationEmail } from "@/lib/email";
+import { z } from "zod";
 
-// In-memory storage for development (replace with database later)
-const users: { email: string; password: string; name: string }[] = [];
+const signupSchema = z.object({
+  email: z.string().email("Invalid email format"),
+  password: z.string().min(6, "Password must be at least 6 characters"),
+  name: z.string().optional(),
+});
 
-export async function POST(req: NextRequest) {
+export async function POST(request: NextRequest) {
   try {
-    const { name, email, password } = await req.json();
+    const body = await request.json();
 
-    // Validation
-    if (!email || !password) {
+    const validation = signupSchema.safeParse(body);
+
+    if (!validation.success) {
       return NextResponse.json(
-        { error: 'Email and password are required' },
+        {
+          success: false,
+          message: "Invalid input data",
+          code: "INVALID_INPUT",
+          errors: validation.error.issues.map((err) => ({
+            field: err.path.join("."),
+            message: err.message,
+          })),
+        },
         { status: 400 }
       );
     }
 
-    if (password.length < 6) {
-      return NextResponse.json(
-        { error: 'Password must be at least 6 characters' },
-        { status: 400 }
-      );
-    }
+    const { email, password, name } = validation.data;
+    const normalizedEmail = email.toLowerCase().trim();
 
-    // Check if user already exists
-    const existingUser = users.find(u => u.email === email);
+    const existingUser = userStore.getUserByEmail(normalizedEmail);
     if (existingUser) {
       return NextResponse.json(
-        { error: 'User with this email already exists' },
+        {
+          success: false,
+          message: "An account with this email already exists",
+          code: "USER_EXISTS",
+        },
         { status: 409 }
       );
     }
 
-    // Store user (in production, hash the password!)
-    users.push({ email, password, name: name || '' });
+    const verificationToken = generateVerificationToken();
+    const tokenExpiry = new Date(Date.now() + 10 * 60 * 1000);
 
-    console.log('New user registered:', { email, name });
-    console.log('Total users:', users.length);
-    console.log('All users:', users.map(u => ({ email: u.email, name: u.name })));
+    try {
+      userStore.addUser({
+        email: normalizedEmail,
+        password, // In production, hash this password!
+        name: name || normalizedEmail.split("@")[0],
+        role: "user",
+        isVerified: false,
+        hasAccess: false,
+        verificationToken,
+        verificationTokenExpiry: tokenExpiry,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+    } catch (error) {
+      console.error("Failed to create user:", error);
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Failed to create user account",
+          code: "USER_CREATE_ERROR",
+        },
+        { status: 500 }
+      );
+    }
+
+    try {
+      await sendVerificationEmail(normalizedEmail, verificationToken, name);
+    } catch (emailError) {
+      console.error("Failed to send verification email:", emailError);
+
+      userStore.updateUser(normalizedEmail, { isLocked: true });
+
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Failed to send verification email. Please try again.",
+          code: "EMAIL_SEND_FAILED",
+        },
+        { status: 500 }
+      );
+    }
 
     return NextResponse.json(
-      { 
-        message: 'User created successfully',
-        user: { email, name }
+      {
+        success: true,
+        message:
+          "User registered successfully. Please check your email to verify your account.",
+        code: "REGISTRATION_SUCCESS",
+        userId: normalizedEmail,
+        email: normalizedEmail,
+        requiresVerification: true,
       },
       { status: 201 }
     );
   } catch (error) {
-    console.error('Signup error:', error);
+    console.error("[SIGNUP] Unexpected error:", error);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      {
+        success: false,
+        message: "An unexpected error occurred during registration",
+        code: "INTERNAL_ERROR",
+      },
       { status: 500 }
     );
   }
 }
 
-// Export the users array for use in NextAuth
-export { users };
+// GET method for testing
+export async function GET() {
+  return NextResponse.json(
+    {
+      success: false,
+      message: "Use POST method to register",
+      code: "METHOD_NOT_ALLOWED",
+    },
+    { status: 405 }
+  );
+}
