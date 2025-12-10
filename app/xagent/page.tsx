@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
-import { toast, Toaster } from 'react-hot-toast'; // ✅ Import toast
+import { toast, Toaster } from 'react-hot-toast'; // 
 import { 
   LogOut, 
   Sparkles, 
