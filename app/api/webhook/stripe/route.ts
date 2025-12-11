@@ -65,6 +65,7 @@ export async function POST(req: NextRequest) {
 
         if (!user) {
           userStore.addUser({
+            id: crypto.randomUUID(),
             email: customerEmail,
             password: '',
             name: customer.name || 'Stripe User',

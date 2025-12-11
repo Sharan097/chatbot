@@ -1,5 +1,6 @@
 // lib/jwt.ts
 import { SignJWT, jwtVerify, JWTPayload } from "jose";
+import crypto from "crypto";
 
 const secret = new TextEncoder().encode(
   process.env.NEXTAUTH_SECRET ||
@@ -7,6 +8,7 @@ const secret = new TextEncoder().encode(
 );
 
 interface TokenPayload extends JWTPayload {
+  id: string; 
   email: string;
   name: string;
   role: string;

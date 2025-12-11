@@ -19,7 +19,7 @@ function LoginForm() {
   const searchParams = useSearchParams();
 
   const verified = searchParams.get("verified");
-  const signup = searchParams.get("signup");
+  const register = searchParams.get("register");
   const authError = searchParams.get("error");
   const callbackUrl = searchParams.get("callbackUrl");
 
@@ -39,14 +39,14 @@ function LoginForm() {
 
     if (verified === "true") {
       setSuccess("Email verified successfully! You can now log in.");
-    } else if (signup === "success") {
+    } else if (register === "success") {
       setSuccess("Account created! Please check your email to verify.");
     } else if (authError === "unauthorized") {
       setError("Please log in to access that page.");
     } else if (authError === "session_expired") {
       setError("Your session has expired. Please login again.");
     }
-  }, [verified, signup, authError]);
+  }, [verified, register, authError]);
 
   const handleResendVerification = async () => {
     if (!email) {
@@ -372,10 +372,10 @@ function LoginForm() {
             <p className="text-gray-600 text-sm">
               No account?{" "}
               <Link
-                href="/signup"
+                href="/register"
                 className="text-indigo-600 hover:text-indigo-700 font-semibold"
               >
-                Sign up
+                Register
               </Link>
             </p>
           </div>

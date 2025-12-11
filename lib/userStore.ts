@@ -1,5 +1,8 @@
 // lib/userStore.ts
+import crypto from "crypto";
+
 type User = {
+   id: string;
   email: string;
   password: string;
   name: string;
@@ -20,6 +23,7 @@ class UserStore {
   
   private users: User[] = [
     {
+      id: crypto.randomBytes(16).toString("hex"),
       email: 'test@example.com',
       password: 'password123',
       name: 'Test User',
@@ -30,6 +34,7 @@ class UserStore {
       updatedAt: new Date()
     },
     {
+      id: crypto.randomBytes(16).toString("hex"),
       email: 'admin@example.com',
       password: 'admin123',
       name: 'Admin User',
@@ -50,6 +55,10 @@ class UserStore {
     return UserStore.instance;
   }
 
+  private generateUserId(): string {
+    return crypto.randomBytes(16).toString("hex");
+  }
+
   addUser(user: User): void {
     const exists = this.users.find(u => u.email.toLowerCase() === user.email.toLowerCase());
     if (exists) {
@@ -57,6 +66,7 @@ class UserStore {
     }
     this.users.push({
       ...user,
+      id: user.id || this.generateUserId(),
       role: user.role || 'user',
       isVerified: false,
       hasAccess: false,
@@ -87,6 +97,10 @@ class UserStore {
 
   getUserByCustomerId(customerId: string): User | null {
     return this.users.find(u => u.stripeCustomerId === customerId) || null;
+  }
+
+  getUserById(id: string): User | null {
+    return this.users.find(u => u.id === id) || null;
   }
 
   verifyUser(token: string): User | null {

@@ -11,7 +11,7 @@ import { GoogleLogo, XLogo } from "@/components/icons";
 import Link from "next/link";
 import { Mail, Lock, User, AlertCircle, CheckCircle } from "lucide-react";
 
-function SignUpForm() {
+function RegisterForm() {
   const router = useRouter();
   const { status } = useSession();
 
@@ -82,7 +82,7 @@ function SignUpForm() {
     }
 
     try {
-      const response = await fetch("/api/auth/signup", {
+      const response = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -116,7 +116,7 @@ function SignUpForm() {
       );
 
       setTimeout(() => {
-        router.push("/login?signup=success");
+        router.push("/login?register=success");
       }, 5000);
     } catch (error) {
       setError(
@@ -129,7 +129,7 @@ function SignUpForm() {
     }
   };
 
-  const handleGoogleSignup = async () => {
+  const handleGoogleRegister = async () => {
     setIsLoading(true);
     setError("");
     try {
@@ -140,13 +140,13 @@ function SignUpForm() {
     }
   };
 
-  const handleXSignup = async () => {
+  const handleXRegister = async () => {
     setIsLoading(true);
     setError("");
     try {
       await signIn("twitter", { callbackUrl: "/" });
     } catch (error) {
-      setError("X sign-up failed. Please try again.");
+      setError("X Register failed. Please try again.");
       setIsLoading(false);
     }
   };
@@ -161,7 +161,7 @@ function SignUpForm() {
               Create your account
             </h1>
             <p className="text-gray-600 text-sm">
-              Sign up to start creating AI-powered cards
+              Register to start creating AI-powered cards
             </p>
           </div>
 
@@ -256,7 +256,7 @@ function SignUpForm() {
                   Creating account...
                 </span>
               ) : (
-                "Sign up"
+                "Register"
               )}
             </Button>
           </form>
@@ -271,12 +271,12 @@ function SignUpForm() {
             </div>
           </div>
 
-          {/* Social Signup Buttons */}
+          {/* Social Register Buttons */}
           <div className="space-y-3">
             <Button
               type="button"
               variant="outline"
-              onClick={handleGoogleSignup}
+              onClick={handleGoogleRegister}
               disabled={isLoading}
               className="w-full py-6 bg-white hover:bg-gray-50 border-2"
             >
@@ -287,7 +287,7 @@ function SignUpForm() {
             <Button
               type="button"
               variant="outline"
-              onClick={handleXSignup}
+              onClick={handleXRegister}
               disabled={isLoading}
               className="w-full py-6 bg-white hover:bg-gray-50 border-2"
             >
@@ -352,7 +352,7 @@ function SignUpForm() {
   );
 }
 
-export default function SignUpPage() {
+export default function RegisterPage() {
   return (
     <Suspense
       fallback={
@@ -361,7 +361,7 @@ export default function SignUpPage() {
         </div>
       }
     >
-      <SignUpForm />
+      <RegisterForm />
     </Suspense>
   );
 }

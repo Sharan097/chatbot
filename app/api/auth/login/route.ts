@@ -57,6 +57,7 @@ export async function POST(request: NextRequest) {
     }
 
     const accessToken = await signAccessToken({
+      id: user.id,
       email: user.email,
       name: user.name,
       role: user.role,
@@ -73,6 +74,7 @@ export async function POST(request: NextRequest) {
         success: true,
         data: {
           user: {
+            id: user.id,
             email: user.email,
             name: user.name,
             role: user.role,

@@ -51,7 +51,7 @@ export async function middleware(request: NextRequest) {
 
   const isAuthPage =
     pathname === "/login" ||
-    pathname === "/signup" ||
+    pathname === "/register" ||
     pathname === "/verify" ||
     pathname.startsWith("/auth/verify");
 

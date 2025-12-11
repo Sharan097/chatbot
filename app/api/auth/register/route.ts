@@ -3,7 +3,7 @@ import { userStore } from "@/lib/userStore";
 import { generateVerificationToken, sendVerificationEmail } from "@/lib/email";
 import { z } from "zod";
 
-const signupSchema = z.object({
+const registerSchema = z.object({
   email: z.string().email("Invalid email format"),
   password: z.string().min(6, "Password must be at least 6 characters"),
   name: z.string().optional(),
@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
 
-    const validation = signupSchema.safeParse(body);
+    const validation = registerSchema.safeParse(body);
 
     if (!validation.success) {
       return NextResponse.json(
@@ -47,11 +47,13 @@ export async function POST(request: NextRequest) {
 
     const verificationToken = generateVerificationToken();
     const tokenExpiry = new Date(Date.now() + 10 * 60 * 1000);
+    const userId = crypto.randomUUID();
 
     try {
       userStore.addUser({
+        id: userId,
         email: normalizedEmail,
-        password, // In production, hash this password!
+        password,                                                // In production, hash this password!
         name: name || normalizedEmail.split("@")[0],
         role: "user",
         isVerified: false,
@@ -96,14 +98,14 @@ export async function POST(request: NextRequest) {
         message:
           "User registered successfully. Please check your email to verify your account.",
         code: "REGISTRATION_SUCCESS",
-        userId: normalizedEmail,
+        userId: userId,
         email: normalizedEmail,
         requiresVerification: true,
       },
       { status: 201 }
     );
   } catch (error) {
-    console.error("[SIGNUP] Unexpected error:", error);
+    console.error("[REGISTER] Unexpected error:", error);
     return NextResponse.json(
       {
         success: false,

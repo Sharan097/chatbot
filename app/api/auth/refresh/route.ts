@@ -62,6 +62,7 @@ export async function POST(request: NextRequest) {
     }
 
     const newAccessToken = await signAccessToken({
+      id: user.id,
       email: user.email,
       name: user.name,
       role: user.role,
@@ -76,6 +77,7 @@ export async function POST(request: NextRequest) {
         accessToken: newAccessToken,
         expiresAt: expiresAt.toISOString(),
         user: {
+          id: user.id,
           email: user.email,
           name: user.name,
           role: user.role,

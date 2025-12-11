@@ -166,7 +166,7 @@ function VerificationContent() {
 
               <div className="space-y-3">
                 <Link
-                  href="/signup"
+                  href="/register"
                   className="block px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-full transition-all shadow-lg hover:shadow-xl active:scale-95"
                 >
                   Create New Account

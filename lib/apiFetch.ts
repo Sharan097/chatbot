@@ -42,7 +42,7 @@ export async function apiFetch(url: string, options: RequestInit = {}) {
     const refreshResult = await refreshResponse.json();
 
     if (refreshResponse.ok && refreshResult.success) {
-      console.log('✅ Token refreshed, retrying request');
+      console.log('Token refreshed, retrying request');
       
       // Update token
       localStorage.setItem('access_token', refreshResult.accessToken);

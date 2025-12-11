@@ -6,6 +6,7 @@ import TwitterProvider from "next-auth/providers/twitter";
 import FacebookProvider from "next-auth/providers/facebook";
 import { userStore } from "@/lib/userStore";
 import { z } from "zod";
+import crypto from "crypto";
 
 if (!process.env.NEXTAUTH_SECRET) {
   throw new Error("NEXTAUTH_SECRET must be set in .env.local");
@@ -24,7 +25,7 @@ interface ExtendedUser extends User {
 
 const loginAttempts = new Map<string, { count: number; resetTime: number }>();
 
-function checkRateLimit(email: string): { allowed: boolean; retryAfter?: number } {
+function checkRateLimit(email: string) {
   const now = Date.now();
   const attempts = loginAttempts.get(email);
 
@@ -34,8 +35,7 @@ function checkRateLimit(email: string): { allowed: boolean; retryAfter?: number 
   }
 
   if (attempts.count >= 5) {
-    const retryAfter = Math.ceil((attempts.resetTime - now) / 1000);
-    return { allowed: false, retryAfter };
+    return { allowed: false, retryAfter: Math.ceil((attempts.resetTime - now) / 1000) };
   }
 
   attempts.count++;
@@ -47,13 +47,6 @@ export const authOptions: NextAuthOptions = {
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID || "",
       clientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
-      authorization: {
-        params: {
-          prompt: "consent",
-          access_type: "offline",
-          response_type: "code",
-        },
-      },
     }),
 
     TwitterProvider({
@@ -71,130 +64,97 @@ export const authOptions: NextAuthOptions = {
       id: "credentials",
       name: "Credentials",
       credentials: {
-        email: {
-          label: "Email",
-          type: "email",
-          placeholder: "test@example.com",
-        },
+        email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" },
       },
 
       async authorize(credentials) {
-        try {
-          if (!credentials?.email || !credentials?.password) {
-            throw new Error("MISSING_CREDENTIALS");
-          }
-
-          const validation = loginSchema.safeParse(credentials);
-
-          if (!validation.success) {
-            throw new Error("INVALID_INPUT");
-          }
-
-          const { email, password } = validation.data;
-          const normalizedEmail = email.toLowerCase().trim();
-
-          const rateLimit = checkRateLimit(normalizedEmail);
-          if (!rateLimit.allowed) {
-            throw new Error("RATE_LIMIT_EXCEEDED");
-          }
-
-          const user = userStore.getUser(normalizedEmail, password);
-
-          if (!user) {
-            const existingUser = userStore.getUserByEmail(normalizedEmail);
-
-            if (existingUser && !existingUser.isVerified) {
-              throw new Error("EMAIL_NOT_VERIFIED");
-            }
-
-            throw new Error("INVALID_CREDENTIALS");
-          }
-
-          if ("isLocked" in user && user.isLocked) {
-            throw new Error("ACCOUNT_LOCKED");
-          }
-
-          loginAttempts.delete(normalizedEmail);
-
-          return {
-            id: user.email,
-            email: user.email,
-            name: user.name,
-            role: user.role,
-            hasAccess: user.hasAccess || false,
-            provider: "credentials",
-          } as ExtendedUser;
-        } catch (error) {
-          if (error instanceof Error) {
-            throw error;
-          }
-          throw new Error("AUTHENTICATION_FAILED");
+        if (!credentials?.email || !credentials?.password) {
+          throw new Error("MISSING_CREDENTIALS");
         }
+
+        const validation = loginSchema.safeParse(credentials);
+        if (!validation.success) throw new Error("INVALID_INPUT");
+
+        const email = validation.data.email.toLowerCase().trim();
+        const password = validation.data.password;
+
+        const limit = checkRateLimit(email);
+        if (!limit.allowed) throw new Error("RATE_LIMIT_EXCEEDED");
+
+        const user = userStore.getUser(email, password);
+        if (!user) {
+          const existing = userStore.getUserByEmail(email);
+          if (existing && !existing.isVerified) throw new Error("EMAIL_NOT_VERIFIED");
+
+          throw new Error("INVALID_CREDENTIALS");
+        }
+
+        loginAttempts.delete(email);
+
+        return {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          role: user.role,
+          hasAccess: user.hasAccess,
+          provider: "credentials",
+        } as ExtendedUser;
       },
     }),
   ],
-
-  session: {
-    strategy: "jwt",
-    maxAge: 30 * 24 * 60 * 60,
-    updateAge: 24 * 60 * 60,
-  },
-
-  jwt: {
-    maxAge: 30 * 24 * 60 * 60,
-  },
 
   pages: {
     signIn: "/login",
     error: "/login",
   },
 
+  session: {
+    strategy: "jwt",
+    maxAge: 30 * 24 * 60 * 60,
+  },
+
+  jwt: {
+    maxAge: 30 * 24 * 60 * 60,
+  },
+
   callbacks: {
     async signIn({ user, account }) {
+      // OAuth sign-in logic
       if (account?.provider && account.provider !== "credentials") {
         const email = user.email?.toLowerCase().trim();
+        if (!email) return false;
 
-        if (!email) {
-          return false;
-        }
+        const existing = userStore.getUserByEmail(email);
 
-        let existingUser = userStore.getUserByEmail(email);
-
-        if (!existingUser) {
-          try {
-            userStore.addUser({
-              email: email,
-              password: "",
-              name: user.name || email.split("@")[0],
-              role: "user",
-              isVerified: true,
-              hasAccess: false,
-              createdAt: new Date(),
-              updatedAt: new Date(),
-            });
-            existingUser = userStore.getUserByEmail(email);
-          } catch (error) {
-            console.error("Error creating OAuth user:", error);
-            return false;
-          }
-        } else if (!existingUser.isVerified) {
-          existingUser.isVerified = true;
-          existingUser.updatedAt = new Date();
+        if (!existing) {
+          // Create OAuth user
+          userStore.addUser({
+            id: crypto.randomUUID(),
+            email,
+            password: "",
+            name: user.name || email.split("@")[0],
+            role: "user",
+            isVerified: true,
+            hasAccess: false,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          });
         }
       }
 
       return true;
     },
 
-    async jwt({ token, user, account, trigger }) {
+    async jwt({ token, user, account }) {
       if (user) {
-        const extendedUser = user as ExtendedUser;
-        token.id = extendedUser.id;
+        const ext = user as ExtendedUser;
+
+        token.id = ext.id;
         token.email = user.email;
         token.name = user.name;
-        token.role = extendedUser.role || "user";
-        token.hasAccess = extendedUser.hasAccess || false;
+        token.role = ext.role || "user";
+        token.hasAccess = ext.hasAccess || false;
         token.provider = account?.provider || "credentials";
 
         if (account?.provider === "twitter") {
@@ -203,58 +163,27 @@ export const authOptions: NextAuthOptions = {
         }
       }
 
-      if (trigger === "update") {
-        const email = token.email as string;
-        const userData = userStore.getUserByEmail(email);
-        if (userData) {
-          token.role = userData.role;
-          token.hasAccess = userData.hasAccess;
-        }
-      }
-
       return token;
     },
 
     async session({ session, token }) {
-      if (token && session.user) {
-        session.user = {
-          ...session.user,
-          id: token.id as string,
-          email: token.email as string,
-          name: token.name as string,
-          role: token.role as string,
-          hasAccess: token.hasAccess as boolean,
-          provider: token.provider as string,
-          accessToken: token.accessToken as string | undefined,
-        };
+      if (session.user) {
+        session.user.id = token.id as string;
+        session.user.email = token.email as string;
+        session.user.name = token.name as string;
+        session.user.role = token.role as string;
+        session.user.hasAccess = token.hasAccess as boolean;
+        session.user.provider = token.provider as string;
       }
-
       return session;
     },
 
     async redirect({ url, baseUrl }) {
-      if (
-        url.includes("/login") ||
-        url.includes("/signup") ||
-        url.includes("/api/auth")
-      ) {
-        return baseUrl + "/";
+      if (url.startsWith("/login") || url.startsWith("/register")) {
+        return baseUrl;
       }
-
-      if (url.startsWith(baseUrl)) {
-        return url;
-      }
-
-      return baseUrl + "/";
-    },
-  },
-
-  events: {
-    async signIn({ user, account }) {
-      console.log("User signed in:", user.email, "via", account?.provider);
-    },
-    async signOut({ token }) {
-      console.log("User signed out:", token?.email);
+      if (url.startsWith(baseUrl)) return url;
+      return baseUrl;
     },
   },
 
